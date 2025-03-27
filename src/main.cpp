@@ -9,9 +9,12 @@
 
 #define LED_PIN 13
 #define Task 1
+#define Threshold 30
  
 LSM6DSO myIMU; //Default constructor is I2C, addr 0x6B
-
+int stepCount = 0;
+bool forward = false;
+BLECharacteristic *pCharacteristic = NULL;
 
 class MyCallbacks: public BLECharacteristicCallbacks {
    void onWrite(BLECharacteristic *pCharacteristic) {
@@ -41,6 +44,8 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 void setup() {
  Serial.begin(9600);
 
+ Wire.begin();
+
  pinMode(LED_PIN, OUTPUT);
 
  digitalWrite(LED_PIN, 0);
@@ -57,7 +62,7 @@ void setup() {
  
  BLEService *pService = pServer->createService(SERVICE_UUID);
  
- BLECharacteristic *pCharacteristic = pService->createCharacteristic(
+ pCharacteristic = pService->createCharacteristic(
                                         CHARACTERISTIC_UUID,
                                         BLECharacteristic::PROPERTY_READ |
                                         BLECharacteristic::PROPERTY_WRITE
@@ -87,25 +92,22 @@ void setup() {
  
 void loop() {
 //Get all parameters
-  Serial.print("\nAccelerometer:\n");
-  Serial.print(" X = ");
-  Serial.println(myIMU.readFloatAccelX(), 3);
-  Serial.print(" Y = ");
-  Serial.println(myIMU.readFloatAccelY(), 3);
-  Serial.print(" Z = ");
-  Serial.println(myIMU.readFloatAccelZ(), 3);
 
-  Serial.print("\nGyroscope:\n");
-  Serial.print(" X = ");
-  Serial.println(myIMU.readFloatGyroX(), 3);
-  Serial.print(" Y = ");
-  Serial.println(myIMU.readFloatGyroY(), 3);
-  Serial.print(" Z = ");
-  Serial.println(myIMU.readFloatGyroZ(), 3);
+  if (forward) {
+    if (myIMU.readFloatGyroY() < - Threshold) {
+      forward = false;
+      stepCount++;
+    }
+  } else {
+    if (myIMU.readFloatGyroY() > Threshold) {
+      forward = true;
+    }
+  }
 
-  Serial.print("\nThermometer:\n");
-  Serial.print(" Degrees F = ");
-  Serial.println(myIMU.readTempF(), 3);
+  Serial.println(stepCount);
+  pCharacteristic->setValue(stepCount);
+
+
   
-  delay(1000);
+  delay(50);
   }
